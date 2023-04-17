@@ -6,14 +6,14 @@ import androidx.camera.core.ImageProxy
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.common.InputImage
 
-class QRCodeAralyzer(val onDetectListener: OnDetectListener): ImageAnalysis.Analyzer{
+class QRCodeAnalyzer(val onDetectListener: OnDetectListener): ImageAnalysis.Analyzer{
     private val scanner = BarcodeScanning.getClient()
 
     @SuppressLint("UnsafeOptInUsageError")
     override fun analyze(imageProxy: ImageProxy) {
         val mediaImage = imageProxy.image
         if(mediaImage != null) {
-            var image = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
+            val image = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
             scanner.process(image).addOnSuccessListener {
                 qrCodes -> for(qrCode in qrCodes) {
                     onDetectListener.onDetect(qrCode.rawValue ?: "")

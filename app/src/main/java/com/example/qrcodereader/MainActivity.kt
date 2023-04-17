@@ -1,6 +1,7 @@
 package com.example.qrcodereader
 
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
@@ -12,7 +13,6 @@ import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.content.ContextCompat
 import com.example.qrcodereader.databinding.ActivityMainBinding
 import com.google.common.util.concurrent.ListenableFuture
-import java.util.concurrent.Executor
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
@@ -22,7 +22,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var cameraProviderFuture : ListenableFuture<ProcessCameraProvider>
 
     private val PERMISSIONS_REQUEST_CODE = 1
-    private val PERMISSIONS_REQUTRED = arrayOf(android.Manifest.permission.CAMERA)
+    private val PERMISSIONS_REQUIRED = arrayOf(android.Manifest.permission.CAMERA)
+
+    private var isDetected = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -34,10 +36,32 @@ class MainActivity : AppCompatActivity() {
 
         if(!hasPermissions(this)) {
             // 사용자에게 카메라 권한 요청
-            requestPermissions(PERMISSIONS_REQUTRED, PERMISSIONS_REQUEST_CODE)
+            requestPermissions(PERMISSIONS_REQUIRED, PERMISSIONS_REQUEST_CODE)
         } else startCamera()    // 권한요청이 되었다면 카메라 실행
+    }
 
-        startCamera()
+    override fun onResume() {
+        super.onResume()
+        isDetected = false
+    }
+
+    fun getImageAnalysis() : ImageAnalysis {
+        val cameraExecutor : ExecutorService = Executors.newSingleThreadExecutor()
+        val imageAnalysis = ImageAnalysis.Builder().build()
+
+        imageAnalysis.setAnalyzer(cameraExecutor, QRCodeAnalyzer(object : OnDetectListener {
+            override fun onDetect(msg: String) {
+                if(!isDetected) {
+                    isDetected = true
+
+                    val intent = Intent(this@MainActivity, ResultActivity::class.java)
+                    intent.putExtra("msg", msg)
+                    startActivity(intent)
+                }
+//                Toast.makeText(this@MainActivity, "${msg}", Toast.LENGTH_SHORT).show()
+            }
+        }))
+        return imageAnalysis
     }
 
     fun startCamera() {
@@ -60,24 +84,12 @@ class MainActivity : AppCompatActivity() {
         return preview
     }
 
-    fun getImageAnalysis() : ImageAnalysis {
-        val cameraExecutor : ExecutorService = Executors.newSingleThreadExecutor()
-        val imageAnalysis = ImageAnalysis.Builder().build()
-
-        imageAnalysis.setAnalyzer(cameraExecutor, QRCodeAralyzer(object : OnDetectListener {
-            override fun onDetect(msg: String) {
-                Toast.makeText(this@MainActivity, "${msg}", Toast.LENGTH_SHORT).show()
-            }
-        }))
-        return imageAnalysis
-    }
-
-    fun hasPermissions(context: Context) = PERMISSIONS_REQUTRED.all {
+    fun hasPermissions(context: Context) = PERMISSIONS_REQUIRED.all {
         ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
     }
 
     override fun onRequestPermissionsResult(
-        requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
 
         if(requestCode == PERMISSIONS_REQUEST_CODE) {
